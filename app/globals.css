@@ -1,0 +1,112 @@
+@import 'tailwindcss';
+@config '../tailwind.config.ts';
+
+/*
+ * Base layer only. No universal reset beyond Tailwind's preflight: an unlayered
+ * `* { margin: 0; padding: 0 }` rule outranks every spacing utility and breaks
+ * the whole layout.
+ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    /* Keeps anchor targets clear of the fixed two-tier header. */
+    scroll-padding-top: 10rem;
+  }
+
+  :root {
+    /* Height of the fixed header: 5rem mobile, 2.5rem utility bar + 5.25rem on md+. */
+    --header-h: 5rem;
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --header-h: 7.75rem;
+    }
+  }
+
+  /*
+   * The header is `position: fixed`, so a page that does not open with a
+   * full-bleed dark hero has to reserve its height or the content starts
+   * underneath it.
+   *
+   * That reservation is driven by the hero's own `data-nav-hero` marker rather
+   * than by a pathname list inside the client-side Header. The marker is part of
+   * the server-rendered HTML, so the space and the hero can never disagree.
+   * The pathname version could: any render where `usePathname()` was not the
+   * real route rendered this spacer on the homepage, pushing the hero 7.75rem
+   * down and leaving the transparent header (with its cream nav labels) sitting
+   * over white page background instead of over the photograph.
+   */
+  main {
+    padding-top: var(--header-h);
+  }
+
+  main:has([data-nav-hero]) {
+    padding-top: 0;
+  }
+
+  body {
+    @apply bg-bone font-sans text-ink antialiased;
+    line-height: 1.65;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-normal;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-clay;
+  }
+
+  ::selection {
+    @apply bg-clay text-bone;
+  }
+}
+
+@layer components {
+  /*
+   * Hairline rule used to separate editorial blocks. Kept here because it is
+   * repeated across five sections and reads better as one named thing.
+   */
+  .rule {
+    @apply h-px w-full bg-line;
+  }
+
+  /* Homepage hero slide autoplay progress (hairline, not a pill). */
+  @keyframes hero-progress {
+    from {
+      width: 0%;
+    }
+    to {
+      width: 100%;
+    }
+  }
+
+  .hero-progress-fill {
+    animation: hero-progress 7s linear forwards;
+  }
+}
+
+/*
+ * Global motion opt-out. Touches animation and transition timing only, so it
+ * cannot affect layout. Framer Motion is handled separately by MotionConfig and
+ * Lenis is not mounted at all when this preference is set.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
