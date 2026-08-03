@@ -1,0 +1,24 @@
+# Navodaya Design and Contract
+
+> Interior and architecture design, contracting and project management firm in New Delhi. Designed and built under one roof.
+
+Navodaya Design and Contract Pvt Ltd is a design-and-build practice based at Mohan Cooperative Industrial Estate, Badarpur, New Delhi. The firm runs three equal practices: interior and architecture design, contracting, and project management. Work covers homes, offices and commercial spaces across Delhi NCR.
+
+- Site: https://www.navodayagroup.com
+- Contact: https://www.navodayagroup.com/contact
+- Email: admin@navodayagroup.in
+- Phone: +91 98710 23184
+
+## Key pages
+
+- [Home](https://www.navodayagroup.com/): Studio overview and enquiry
+- [About](https://www.navodayagroup.com/about): Story, timeline and leadership
+- [Services](https://www.navodayagroup.com/services): Design, contracting and project management
+- [Projects](https://www.navodayagroup.com/projects): Selected built work
+- [Blog](https://www.navodayagroup.com/blog): Practice notes on design and delivery
+- [Contact](https://www.navodayagroup.com/contact): Call, WhatsApp or send a brief
+- [Vendor registration](https://www.navodayagroup.com/vendors-register): Join the vendor network
+
+## Optional
+
+- [Sitemap](https://www.navodayagroup.com/sitemap.xml)
