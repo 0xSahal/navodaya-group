@@ -76,8 +76,11 @@ function pageHasNavHero(pathname: string) {
 export function Header({ services }: { services: Service[] }) {
   const pathname = usePathname()
   const isHome = pathname === '/'
-  const hasNavHero = pageHasNavHero(pathname)
   const [open, setOpen] = useState(false)
+  /*
+   * Pathname is only a first-paint / navigation-reset hint. Live tone comes
+   * from whether `[data-nav-hero]` still intersects the top of the viewport.
+   */
   const [scrolled, setScrolled] = useState(() => !pageHasNavHero(pathname))
   const [desktopMenu, setDesktopMenu] = useState<NavMenu | null>(null)
   const [mobileMenu, setMobileMenu] = useState<NavMenu | null>(null)
@@ -101,7 +104,7 @@ export function Header({ services }: { services: Service[] }) {
   }
 
   /** Transparent over the page hero until the visitor scrolls past it. */
-  const overHero = hasNavHero && !scrolled && !open
+  const overHero = !scrolled && !open
   const ctaHref = isHome ? '#contact' : '/contact'
   const navTone = overHero
     ? 'text-bone/75 hover:text-bone'
@@ -115,30 +118,78 @@ export function Header({ services }: { services: Service[] }) {
     }
   }, [open])
 
+  /*
+   * Drive tone from the hero in the DOM, not from scrollY. A mount-time
+   * scrollY measure raced IntroProvider's scrollTo(0,0) and could leave the
+   * header solid over the dark hero. IntersectionObserver self-corrects when
+   * that reset lands, and matches the CSS `:has([data-nav-hero])` source of
+   * truth used for layout padding.
+   *
+   * rootMargin shrinks the root from the bottom so we observe against the top
+   * 72% of the viewport — the same threshold as the old `scrollY > 0.72 *
+   * heroHeight` heuristic.
+   *
+   * Soft navigations can leave the outgoing hero in the document briefly, or
+   * commit the incoming one a frame late. A MutationObserver on `main` re-runs
+   * the attach whenever the marker appears or disappears, so we never stay
+   * attached to a stale node.
+   */
   useEffect(() => {
-    // Routes without a full-bleed hero keep the solid header, so there is
-    // nothing to measure and no listener to attach.
-    if (!hasNavHero) return
+    let cancelled = false
+    let io: IntersectionObserver | null = null
+    let rafId = 0
 
-    /*
-     * Re-query on every scroll rather than capturing the element once: during a
-     * client-side navigation this effect can run before the incoming page's
-     * hero has committed, and a captured null would leave the header stuck in
-     * its solid state on a page that does have a hero. The viewport fallback
-     * covers that first frame.
-     */
-    const onScroll = () => {
-      const hero = document.querySelector<HTMLElement>('[data-nav-hero]')
-      const heroHeight = hero?.offsetHeight ?? window.innerHeight
-      setScrolled(window.scrollY > heroHeight * 0.72)
+    const disconnectIo = () => {
+      io?.disconnect()
+      io = null
     }
 
-    // Measure once on mount: a reload part-way down the page must not start
-    // with a transparent header over light content.
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [pathname, hasNavHero])
+    const sync = () => {
+      if (cancelled) return
+      disconnectIo()
+
+      const hero = document.querySelector<HTMLElement>('[data-nav-hero]')
+      if (!hero?.isConnected) {
+        setScrolled(true)
+        return
+      }
+
+      io = new IntersectionObserver(
+        ([entry]) => {
+          if (cancelled || !entry) return
+          if (!entry.target.isConnected) {
+            setScrolled(true)
+            disconnectIo()
+            return
+          }
+          setScrolled(!entry.isIntersecting)
+        },
+        { root: null, threshold: 0, rootMargin: '0px 0px -28% 0px' },
+      )
+      io.observe(hero)
+    }
+
+    const scheduleSync = () => {
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(sync)
+    }
+
+    // Two frames lets the outgoing page unmount before the first attach.
+    rafId = requestAnimationFrame(() => {
+      rafId = requestAnimationFrame(sync)
+    })
+
+    const main = document.querySelector('main')
+    const mo = new MutationObserver(scheduleSync)
+    if (main) mo.observe(main, { childList: true, subtree: true })
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(rafId)
+      mo.disconnect()
+      disconnectIo()
+    }
+  }, [pathname])
 
   useEffect(() => {
     if (!desktopMenu) return
