@@ -13,6 +13,7 @@ import {
 import type { Service } from '@/data/services'
 import { Container } from '@/components/ui/Container'
 import { Logo } from '@/components/brand/Logo'
+import { useIntroFinished } from '@/components/providers/IntroProvider'
 
 function FacebookIcon() {
   return (
@@ -110,6 +111,7 @@ export function Header({ services }: { services: Service[] }) {
     ? 'text-bone/75 hover:text-bone'
     : 'text-stone hover:text-ink'
   const logoTone = overHero ? 'dark' : 'light'
+  const introFinished = useIntroFinished()
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
@@ -119,77 +121,66 @@ export function Header({ services }: { services: Service[] }) {
   }, [open])
 
   /*
-   * Drive tone from the hero in the DOM, not from scrollY. A mount-time
-   * scrollY measure raced IntroProvider's scrollTo(0,0) and could leave the
-   * header solid over the dark hero. IntersectionObserver self-corrects when
-   * that reset lands, and matches the CSS `:has([data-nav-hero])` source of
-   * truth used for layout padding.
+   * Tone follows the hero's getBoundingClientRect, not IntersectionObserver and
+   * not a mount-time scrollY stamp.
    *
-   * rootMargin shrinks the root from the bottom so we observe against the top
-   * 72% of the viewport — the same threshold as the old `scrollY > 0.72 *
-   * heroHeight` heuristic.
+   * Production kept flipping solid after Sanity publishes / streaming updates:
+   * a MutationObserver on `main` saw the hero briefly missing, called
+   * setScrolled(true), and never recovered until a later scroll. Measuring the
+   * rect on scroll (and after the intro unlocks) avoids that trap.
    *
-   * Soft navigations can leave the outgoing hero in the document briefly, or
-   * commit the incoming one a frame late. A MutationObserver on `main` re-runs
-   * the attach whenever the marker appears or disappears, so we never stay
-   * attached to a stale node.
+   * Threshold matches the old `scrollY > heroHeight * 0.72` behaviour: solid
+   * once the hero's bottom edge sits above the lower 28% of the viewport.
+   *
+   * On hero routes, a missing marker is NOT treated as solid — that is the
+   * streaming race. We only go solid when the pathname itself has no hero.
    */
   useEffect(() => {
     let cancelled = false
-    let io: IntersectionObserver | null = null
     let rafId = 0
+    const expectsHero = pageHasNavHero(pathname)
 
-    const disconnectIo = () => {
-      io?.disconnect()
-      io = null
+    // Splash covers the header; keep hero routes transparent until it lifts so
+    // measurement noise during overflow-lock / Lenis mount cannot flash solid.
+    if (!introFinished && expectsHero) {
+      setScrolled(false)
+      return
     }
 
-    const sync = () => {
+    const measure = () => {
       if (cancelled) return
-      disconnectIo()
-
       const hero = document.querySelector<HTMLElement>('[data-nav-hero]')
       if (!hero?.isConnected) {
-        setScrolled(true)
+        if (!expectsHero) setScrolled(true)
         return
       }
-
-      io = new IntersectionObserver(
-        ([entry]) => {
-          if (cancelled || !entry) return
-          if (!entry.target.isConnected) {
-            setScrolled(true)
-            disconnectIo()
-            return
-          }
-          setScrolled(!entry.isIntersecting)
-        },
-        { root: null, threshold: 0, rootMargin: '0px 0px -28% 0px' },
-      )
-      io.observe(hero)
+      const { bottom } = hero.getBoundingClientRect()
+      setScrolled(bottom < window.innerHeight * 0.28)
     }
 
-    const scheduleSync = () => {
+    const onScrollOrResize = () => {
       cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(sync)
+      rafId = requestAnimationFrame(measure)
     }
 
-    // Two frames lets the outgoing page unmount before the first attach.
-    rafId = requestAnimationFrame(() => {
-      rafId = requestAnimationFrame(sync)
-    })
+    measure()
+    // Catch heroes that stream in just after the intro unlocks (Sanity /
+    // RSC), without watching every childList mutation on `main`.
+    const retryA = window.setTimeout(measure, 100)
+    const retryB = window.setTimeout(measure, 600)
 
-    const main = document.querySelector('main')
-    const mo = new MutationObserver(scheduleSync)
-    if (main) mo.observe(main, { childList: true, subtree: true })
+    window.addEventListener('scroll', onScrollOrResize, { passive: true })
+    window.addEventListener('resize', onScrollOrResize)
 
     return () => {
       cancelled = true
       cancelAnimationFrame(rafId)
-      mo.disconnect()
-      disconnectIo()
+      window.clearTimeout(retryA)
+      window.clearTimeout(retryB)
+      window.removeEventListener('scroll', onScrollOrResize)
+      window.removeEventListener('resize', onScrollOrResize)
     }
-  }, [pathname])
+  }, [pathname, introFinished])
 
   useEffect(() => {
     if (!desktopMenu) return
