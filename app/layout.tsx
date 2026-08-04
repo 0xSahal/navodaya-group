@@ -91,6 +91,20 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
+      <head>
+        {/*
+         * Must run before hydration. Setting scrollRestoration in a useEffect
+         * is too late: the browser may already have restored a mid-page
+         * scrollY, which left the header solid over the hero. IntroProvider
+         * still calls scrollTo(0, 0) as a belt-and-suspenders reset.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "if('scrollRestoration' in history)history.scrollRestoration='manual'",
+          }}
+        />
+      </head>
       <body className="flex min-h-dvh flex-col">
         {/*
          * IntroProvider is the outer one: LenisProvider reads the intro state to
