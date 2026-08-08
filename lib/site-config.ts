@@ -20,10 +20,10 @@ export const siteConfig = {
    * confirmation all follow.
    */
   contact: {
-    phoneDisplay: '+91 98710 23184',
-    phoneHref: '+919871023184',
-    whatsappNumber: '919871023184',
-    whatsappDisplay: '+91 98710 23184',
+    phoneDisplay: '+91 98112 62599',
+    phoneHref: '+919811262599',
+    whatsappNumber: '919811262599',
+    whatsappDisplay: '+91 98112 62599',
     email: 'admin@navodayagroup.in',
     addressLines: [
       'A - 24/9, Mohan Co-operative Industrial Estate',
